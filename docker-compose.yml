@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # 1. Container PHP-FPM (Laravel App)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: knowledge-bank-app
+    container_name: knowledge_bank_app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - knowledge_bank_network
+
+  # 2. Container Nginx (Web Server) -> Port 4008
+  web:
+    image: nginx:alpine
+    container_name: knowledge_bank_web
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "4008:80"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app
+    networks:
+      - knowledge_bank_network
+
+  # 3. Container Database (MySQL) -> Port 4009
+  db:
+    image: mysql:8.0
+    container_name: knowledge_bank_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-knowledge_bank}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+    ports:
+      - "4009:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - knowledge_bank_network
+
+  # 4. Container phpMyAdmin -> Port 4010
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: knowledge_bank_pma
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_PASSWORD:-root}
+    ports:
+      - "4010:80"
+    depends_on:
+      - db
+    networks:
+      - knowledge_bank_network
+
+networks:
+  knowledge_bank_network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
