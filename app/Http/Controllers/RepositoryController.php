@@ -15,7 +15,18 @@ class RepositoryController extends Controller
 {
     public function capstone()
     {
-        $projects = CapstoneProject::with('user', 'dosen')->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+        $user = Auth::user();
+        $projects = CapstoneProject::with('user', 'dosen')
+            ->where(function($query) use ($user) {
+                if ($user->role !== 'admin' && $user->role !== 'kaprodi') {
+                    $query->where('status', 'approved')
+                          ->orWhere('user_id', $user->id)
+                          ->orWhere('dosen_id', $user->id);
+                }
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
         $dosens = User::where('role', 'dosen')->get();
         return Inertia::render('Repository/Capstone', [
             'projects' => $projects,
@@ -38,8 +49,8 @@ class RepositoryController extends Controller
         $project->status = 'pending';
 
         if ($request->hasFile('document')) {
-            $sanitizedTitle = Str::slug($project->title);
-            $project->document_path = $request->file('document')->store('uploads/' . $sanitizedTitle, 'public');
+            $originalName = $request->file('document')->getClientOriginalName();
+            $project->document_path = $request->file('document')->storeAs('upload/capston/' . $project->group_id, $originalName, 'public');
         }
 
         $project->save();
@@ -49,7 +60,20 @@ class RepositoryController extends Controller
 
     public function script()
     {
-        $projects = ScriptProject::with('user', 'capstoneProject')->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+        $user = Auth::user();
+        $projects = ScriptProject::with('user', 'capstoneProject')
+            ->where(function($query) use ($user) {
+                if ($user->role !== 'admin' && $user->role !== 'kaprodi') {
+                    $query->where('status', 'approved')
+                          ->orWhere('user_id', $user->id)
+                          ->orWhereHas('capstoneProject', function($q) use ($user) {
+                              $q->where('dosen_id', $user->id);
+                          });
+                }
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
         $capstones = CapstoneProject::where('user_id', Auth::id())->get();
         return Inertia::render('Repository/Script', [
             'projects' => $projects,
@@ -75,8 +99,8 @@ class RepositoryController extends Controller
         $project->group_id = $capstone->group_id;
 
         if ($request->hasFile('archive')) {
-            $sanitizedTitle = Str::slug($capstone->title);
-            $project->archive_path = $request->file('archive')->store('uploads/' . $sanitizedTitle, 'public');
+            $originalName = $request->file('archive')->getClientOriginalName();
+            $project->archive_path = $request->file('archive')->storeAs('upload/script/' . $project->group_id, $originalName, 'public');
         }
 
         $project->save();

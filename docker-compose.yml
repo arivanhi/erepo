@@ -14,9 +14,13 @@ services:
       SERVICE_NAME: app
       SERVICE_TAGS: dev
     working_dir: /var/www
+    command: php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000 --watch
     volumes:
       - ./:/var/www
       - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    depends_on:
+      - redis
+      - db
     networks:
       - knowledge_bank_network
 
@@ -67,10 +71,24 @@ services:
     networks:
       - knowledge_bank_network
 
+  # 5. Container Redis (Cache & Queue)
+  redis:
+    image: redis:alpine
+    container_name: knowledge_bank_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - knowledge_bank_network
+
 networks:
   knowledge_bank_network:
     driver: bridge
 
 volumes:
   dbdata:
+    driver: local
+  redisdata:
     driver: local

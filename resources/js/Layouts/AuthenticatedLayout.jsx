@@ -41,7 +41,7 @@ export default function AuthenticatedLayout({ header, children }) {
     const currentRoute = route().current();
 
     return (
-        <div className="bg-background text-on-surface font-body-md bg-radial-gradient min-h-screen flex flex-col md:flex-row overflow-x-hidden">
+        <div className="bg-background text-on-surface font-body-md bg-radial-gradient h-screen w-full flex flex-col md:flex-row overflow-hidden">
             <Toaster position="top-right" />
             {/* TopNavBar for Mobile */}
             <nav className="md:hidden w-full h-20 flex-shrink-0 bg-surface/40 backdrop-blur-md shadow-sm flex justify-between items-center px-container-padding-mobile sticky top-0 z-40 border-b border-white/5">
@@ -94,7 +94,7 @@ export default function AuthenticatedLayout({ header, children }) {
             )}
 
             {/* SideNavBar for Desktop */}
-            <nav className="hidden md:flex bg-surface-container/60 backdrop-blur-xl h-screen w-72 flex-col flex-shrink-0 border-r border-white/10 shadow-xl justify-between py-6 sticky top-0 z-40">
+            <nav className="hidden md:flex bg-surface-container/60 backdrop-blur-xl h-full w-72 flex-col flex-shrink-0 border-r border-white/10 shadow-xl justify-between py-6 z-40">
                 <div className="px-6 mb-8 flex flex-col items-start">
                     <div className="flex flex-row items-center gap-4 w-full">
                         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/50 bg-white/5 flex items-center justify-center shrink-0">

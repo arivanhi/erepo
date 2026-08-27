@@ -161,118 +161,122 @@ export default function AssignAccount({ users, filters }) {
         <AuthenticatedLayout>
             <Head title="Assign Account" />
             
-            {/* Page Header & Actions */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                <div>
-                    <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-2">Assign Account</h2>
-                    <p className="font-body-lg text-body-lg text-on-surface-variant">Manage user access, roles, and institutional identifiers securely.</p>
-                </div>
-                <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                    <button onClick={() => setShowImport(true)} className="flex-1 md:flex-none px-6 py-2.5 rounded-lg border border-white/20 bg-white/5 hover:bg-white/10 text-on-surface font-label-sm text-label-sm transition-all flex items-center justify-center gap-2 backdrop-blur-md">
-                        <span className="material-symbols-outlined text-[18px]">upload_file</span> Import Massal
-                    </button>
-                    <button onClick={() => setShowAdd(true)} className="flex-1 md:flex-none px-6 py-2.5 rounded-lg bg-gradient-to-r from-inverse-primary to-primary-container text-white font-label-sm text-label-sm font-bold shadow-[0_0_15px_rgba(73,75,214,0.4)] hover:shadow-[0_0_25px_rgba(73,75,214,0.6)] transition-all flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-[18px] font-bold">add</span>
-                        + Tambah Akun
-                    </button>
-                </div>
-            </div>
-
-            {/* Data Grid (Glass Panel) */}
-            <div className="glass-panel rounded-xl overflow-hidden shadow-2xl flex flex-col">
-                <div className="px-6 py-4 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface-container-low/50">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <select 
-                            value={roleFilter}
-                            onChange={(e) => {
-                                setRoleFilter(e.target.value);
-                                fetchData({ role: e.target.value });
-                            }}
-                            className="bg-primary/20 border border-primary/30 text-primary font-label-sm text-[12px] rounded-full px-3 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-primary/50 [&>option]:bg-surface-container [&>option]:text-on-surface"
-                        >
-                            <option value="all">All Roles</option>
-                            <option value="admin">Admin</option>
-                            <option value="mahasiswa">Mahasiswa</option>
-                            <option value="dosen">Dosen</option>
-                            <option value="kaprodi">Kaprodi</option>
-                        </select>
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                placeholder="Search Name/NIM/Email..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary w-full sm:w-64 transition-all"
-                            />
-                            <span className="material-symbols-outlined absolute right-3 top-[7px] text-on-surface-variant text-[16px] pointer-events-none">search</span>
-                        </div>
+            <div className="flex flex-col h-full">
+                {/* Page Header & Actions */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 shrink-0">
+                    <div>
+                        <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-2">Assign Account</h2>
+                        <p className="font-body-lg text-body-lg text-on-surface-variant">Manage user access, roles, and institutional identifiers securely.</p>
                     </div>
-                    <span className="font-body-md text-sm text-on-surface-variant">Showing {users.from || 0} to {users.to || 0} of {users.total} users</span>
+                    <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                        <button onClick={() => setShowImport(true)} className="flex-1 md:flex-none px-6 py-2.5 rounded-lg border border-white/20 bg-white/5 hover:bg-white/10 text-on-surface font-label-sm text-label-sm transition-all flex items-center justify-center gap-2 backdrop-blur-md">
+                            <span className="material-symbols-outlined text-[18px]">upload_file</span> Import Massal
+                        </button>
+                        <button onClick={() => setShowAdd(true)} className="flex-1 md:flex-none px-6 py-2.5 rounded-lg bg-gradient-to-r from-inverse-primary to-primary-container text-white font-label-sm text-label-sm font-bold shadow-[0_0_15px_rgba(73,75,214,0.4)] hover:shadow-[0_0_25px_rgba(73,75,214,0.6)] transition-all flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-[18px] font-bold">add</span>
+                            + Tambah Akun
+                        </button>
+                    </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-white/10 bg-black/20 text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
-                                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('name')}>
-                                    Nama Pengguna <SortIcon column="name" />
-                                </th>
-                                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('role')}>
-                                    Role <SortIcon column="role" />
-                                </th>
-                                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('identity_number')}>
-                                    NIM/NPP <SortIcon column="identity_number" />
-                                </th>
-                                <th className="px-6 py-4 font-semibold text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="font-body-md text-sm divide-y divide-white/5">
-                            {users.data.map(u => {
-                                const color = getRoleColor(u.role);
-                                return (
-                                    <tr key={u.id} className="hover:bg-white/5 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full bg-${color}/20 flex items-center justify-center text-${color} font-bold text-xs border border-${color}/30`}>
-                                                    {getInitials(u.name)}
-                                                </div>
-                                                <div>
-                                                    <div className="text-on-surface font-medium group-hover:text-primary transition-colors">{u.name}</div>
-                                                    <div className="text-on-surface-variant text-xs">{u.email}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-full bg-${color}/20 text-${color} border border-${color}/30 text-xs font-medium inline-flex items-center gap-1 capitalize`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full bg-${color}`}></span>
-                                                {u.role}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-on-surface-variant font-mono text-xs">
-                                            {u.identity_number || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => openEdit(u)} className="w-8 h-8 rounded glass-panel flex items-center justify-center text-on-surface-variant hover:text-secondary hover:border-secondary/50 transition-colors" title="Edit">
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                                <button onClick={() => setDeleteUser(u)} className="w-8 h-8 rounded glass-panel flex items-center justify-center text-on-surface-variant hover:text-error hover:border-error/50 transition-colors" title="Delete">
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {users.data.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-8 text-center text-on-surface-variant">No users found.</td>
+                {/* Data Grid (Glass Panel) */}
+                <div className="glass-panel rounded-xl overflow-hidden shadow-2xl flex flex-col flex-1 min-h-0">
+                    <div className="px-6 py-4 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface-container-low/50 shrink-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <select 
+                                value={roleFilter}
+                                onChange={(e) => {
+                                    setRoleFilter(e.target.value);
+                                    fetchData({ role: e.target.value });
+                                }}
+                                className="bg-primary/20 border border-primary/30 text-primary font-label-sm text-[12px] rounded-full px-3 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-primary/50 [&>option]:bg-surface-container [&>option]:text-on-surface"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="admin">Admin</option>
+                                <option value="mahasiswa">Mahasiswa</option>
+                                <option value="dosen">Dosen</option>
+                                <option value="kaprodi">Kaprodi</option>
+                            </select>
+                            <div className="relative">
+                                <input 
+                                    type="text"
+                                    placeholder="Search Name/NIM/Email..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary w-full sm:w-64 transition-all"
+                                />
+                                <span className="material-symbols-outlined absolute right-3 top-[7px] text-on-surface-variant text-[16px] pointer-events-none">search</span>
+                            </div>
+                        </div>
+                        <span className="font-body-md text-sm text-on-surface-variant">Showing {users.from || 0} to {users.to || 0} of {users.total} users</span>
+                    </div>
+
+                    <div className="overflow-auto flex-1 min-h-0">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 z-10">
+                                <tr className="border-b border-white/10 bg-surface-container-high/90 backdrop-blur-md text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+                                    <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('name')}>
+                                        Nama Pengguna <SortIcon column="name" />
+                                    </th>
+                                    <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('role')}>
+                                        Role <SortIcon column="role" />
+                                    </th>
+                                    <th className="px-6 py-4 font-semibold cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('identity_number')}>
+                                        NIM/NPP <SortIcon column="identity_number" />
+                                    </th>
+                                    <th className="px-6 py-4 font-semibold text-right">Aksi</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="font-body-md text-sm divide-y divide-white/5">
+                                {users.data.map(u => {
+                                    const color = getRoleColor(u.role);
+                                    return (
+                                        <tr key={u.id} className="hover:bg-white/5 transition-colors group">
+                                            <td className="px-6 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full bg-${color}/20 flex items-center justify-center text-${color} font-bold text-xs border border-${color}/30`}>
+                                                        {getInitials(u.name)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-on-surface font-medium group-hover:text-primary transition-colors">{u.name}</div>
+                                                        <div className="text-on-surface-variant text-xs">{u.email}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <span className={`px-2.5 py-1 rounded-full bg-${color}/20 text-${color} border border-${color}/30 text-xs font-medium inline-flex items-center gap-1 capitalize`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full bg-${color}`}></span>
+                                                    {u.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 text-on-surface-variant font-mono text-xs">
+                                                {u.identity_number || '-'}
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => openEdit(u)} className="w-8 h-8 rounded glass-panel flex items-center justify-center text-on-surface-variant hover:text-secondary hover:border-secondary/50 transition-colors" title="Edit">
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </button>
+                                                    <button onClick={() => setDeleteUser(u)} className="w-8 h-8 rounded glass-panel flex items-center justify-center text-on-surface-variant hover:text-error hover:border-error/50 transition-colors" title="Delete">
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {users.data.length === 0 && (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-8 text-center text-on-surface-variant">No users found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="shrink-0 bg-surface-container-low/30 border-t border-white/5">
+                        <Pagination links={users.links} />
+                    </div>
                 </div>
-                <Pagination links={users.links} />
             </div>
 
             {/* Modal Tambah Akun */}

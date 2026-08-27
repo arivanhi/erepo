@@ -89,9 +89,11 @@ export default function Capstone({ projects, dosens }) {
                                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">school</span> {project.dosen.name}</span>
                                     </div>
                                 </td>
+                                <td className="px-6 py-5 text-on-surface-variant text-sm">{project.academic_year}</td>
                                 <td className="px-6 py-5">
-                                    <div className="text-on-surface font-mono text-xs mb-1">{project.group_id}</div>
-                                    <div className="text-on-surface-variant text-xs">{project.academic_year}</div>
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-on-surface-variant font-label-sm text-label-sm">
+                                        {project.group_id}
+                                    </span>
                                 </td>
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-2">
@@ -108,6 +110,9 @@ export default function Capstone({ projects, dosens }) {
                                 </td>
                                 <td className="px-6 py-5 text-right whitespace-nowrap">
                                     <div className="flex items-center justify-end gap-2">
+                                        <a href={`/storage/${project.document_path}`} target="_blank" rel="noopener noreferrer" title="View Document" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10 transition-all duration-200 font-label-sm text-label-sm">
+                                            <span className="material-symbols-outlined text-[18px]">visibility</span>
+                                        </a>
                                         <a href={route('repository.capstone.download', project.id)} title="Download Document" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-secondary hover:border-secondary hover:bg-secondary/10 transition-all duration-200 font-label-sm text-label-sm">
                                             <span className="material-symbols-outlined text-[18px]">download</span>
                                         </a>
