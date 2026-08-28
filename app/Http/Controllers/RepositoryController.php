@@ -25,9 +25,9 @@ class RepositoryController extends Controller
                 }
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(10)->onEachSide(1)
             ->withQueryString();
-        $dosens = User::where('role', 'dosen')->get();
+        $dosens = User::whereIn('role', ['dosen', 'kaprodi'])->get();
         return Inertia::render('Repository/Capstone', [
             'projects' => $projects,
             'dosens' => $dosens
@@ -72,7 +72,7 @@ class RepositoryController extends Controller
                 }
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(10)->onEachSide(1)
             ->withQueryString();
         $capstones = CapstoneProject::where('user_id', Auth::id())->get();
         return Inertia::render('Repository/Script', [
@@ -119,8 +119,42 @@ class RepositoryController extends Controller
     public function deleteCapstone($id)
     {
         $project = CapstoneProject::findOrFail($id);
+        $user = Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'kaprodi' && $project->dosen_id !== $user->id) {
+            return redirect()->back()->with('error', 'Unauthorized to delete this project.');
+        }
         $project->delete();
         return redirect()->back()->with('message', 'Capstone deleted!');
+    }
+
+    public function updateCapstone(Request $request, $id)
+    {
+        $project = CapstoneProject::findOrFail($id);
+        $user = Auth::user();
+
+        if ($user->role !== 'admin' && $user->role !== 'kaprodi' && $project->dosen_id !== $user->id && $project->user_id !== $user->id) {
+            return redirect()->back()->with('error', 'Unauthorized to edit this project.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'academic_year' => 'required|string',
+            'group_id' => 'required|string',
+            'dosen_id' => 'required|exists:users,id',
+        ]);
+
+        $project->update($request->only('title', 'academic_year', 'group_id', 'dosen_id'));
+
+        if ($request->hasFile('document')) {
+            if ($project->document_path) {
+                Storage::disk('public')->delete($project->document_path);
+            }
+            $originalName = $request->file('document')->getClientOriginalName();
+            $project->document_path = $request->file('document')->storeAs('upload/capston/' . $project->group_id, $originalName, 'public');
+            $project->save();
+        }
+
+        return redirect()->back()->with('message', 'Capstone project updated successfully!');
     }
 
     public function approveScript($id)
@@ -134,8 +168,44 @@ class RepositoryController extends Controller
     public function deleteScript($id)
     {
         $project = ScriptProject::findOrFail($id);
+        $user = Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'kaprodi' && $project->capstoneProject->dosen_id !== $user->id) {
+            return redirect()->back()->with('error', 'Unauthorized to delete this project.');
+        }
         $project->delete();
         return redirect()->back()->with('message', 'Script deleted!');
+    }
+
+    public function updateScript(Request $request, $id)
+    {
+        $project = ScriptProject::findOrFail($id);
+        $user = Auth::user();
+
+        if ($user->role !== 'admin' && $user->role !== 'kaprodi' && $project->capstoneProject->dosen_id !== $user->id && $project->user_id !== $user->id) {
+            return redirect()->back()->with('error', 'Unauthorized to edit this project.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'capstone_project_id' => 'required|exists:capstone_projects,id',
+        ]);
+
+        $project->update($request->only('title', 'capstone_project_id'));
+        
+        $capstone = CapstoneProject::find($request->capstone_project_id);
+        $project->academic_year = $capstone->academic_year;
+        $project->group_id = $capstone->group_id;
+
+        if ($request->hasFile('archive')) {
+            if ($project->archive_path) {
+                Storage::disk('public')->delete($project->archive_path);
+            }
+            $originalName = $request->file('archive')->getClientOriginalName();
+            $project->archive_path = $request->file('archive')->storeAs('upload/script/' . $project->group_id, $originalName, 'public');
+        }
+        $project->save();
+
+        return redirect()->back()->with('message', 'Script updated successfully!');
     }
 
     public function downloadCapstone($id)

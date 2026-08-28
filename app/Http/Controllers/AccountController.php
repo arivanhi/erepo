@@ -34,7 +34,7 @@ class AccountController extends Controller
             $query->orderBy($sortBy, $sortDir === 'asc' ? 'asc' : 'desc');
         }
 
-        $users = $query->paginate(8)->withQueryString();
+        $users = $query->paginate(8)->onEachSide(1)->withQueryString();
 
         return Inertia::render('Admin/AssignAccount', [
             'users' => $users,

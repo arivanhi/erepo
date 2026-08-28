@@ -26,6 +26,8 @@ export default function Capstone({ projects, dosens }) {
     };
     
     const [showModal, setShowModal] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
     
     const { data, setData, post, processing, reset, errors } = useForm({
         title: '',
@@ -37,12 +39,35 @@ export default function Capstone({ projects, dosens }) {
 
     const fileInputRef = useRef(null);
 
+    const handleNew = () => {
+        reset();
+        setIsEditing(false);
+        setEditId(null);
+        setShowModal(true);
+    };
+
+    const handleEdit = (project) => {
+        setData({
+            title: project.title,
+            academic_year: project.academic_year,
+            group_id: project.group_id,
+            dosen_id: project.dosen_id,
+            document: null
+        });
+        setIsEditing(true);
+        setEditId(project.id);
+        setShowModal(true);
+    };
+
     const submit = (e) => {
         e.preventDefault();
-        post(route('repository.capstone.store'), {
+        const url = isEditing ? route('repository.capstone.update', editId) : route('repository.capstone.store');
+        post(url, {
             onSuccess: () => {
                 setShowModal(false);
                 reset();
+                setIsEditing(false);
+                setEditId(null);
             }
         });
     };
@@ -58,7 +83,7 @@ export default function Capstone({ projects, dosens }) {
                     <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Manage and download your capstone design documents.</p>
                 </div>
                 <button 
-                    onClick={() => setShowModal(true)}
+                    onClick={handleNew}
                     className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-inverse-primary to-primary-container text-white rounded-xl font-label-sm text-label-sm font-semibold shadow-[0_0_20px_rgba(73,75,214,0.4)] hover:shadow-[0_0_30px_rgba(73,75,214,0.6)] transition-all transform hover:-translate-y-0.5 backdrop-blur-md border border-white/10"
                 >
                     <span className="material-symbols-outlined text-[20px]">upload_file</span>
@@ -116,7 +141,12 @@ export default function Capstone({ projects, dosens }) {
                                         <a href={route('repository.capstone.download', project.id)} title="Download Document" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-secondary hover:border-secondary hover:bg-secondary/10 transition-all duration-200 font-label-sm text-label-sm">
                                             <span className="material-symbols-outlined text-[18px]">download</span>
                                         </a>
-                                        {(user.role === 'dosen' || user.role === 'kaprodi') && (
+                                        {(user.role === 'admin' || user.role === 'kaprodi' || project.user_id === user.id || project.dosen_id === user.id) && (
+                                            <button onClick={() => handleEdit(project)} title="Edit Document" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10 transition-all duration-200 font-label-sm text-label-sm">
+                                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                                            </button>
+                                        )}
+                                        {(user.role === 'admin' || user.role === 'kaprodi' || project.dosen_id === user.id) && (
                                             <>
                                                 {project.status === 'pending' && (
                                                     <button onClick={() => setConfirmApproveId(project.id)} title="Approve Document" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10 transition-all duration-200 font-label-sm text-label-sm">
@@ -161,11 +191,11 @@ export default function Capstone({ projects, dosens }) {
                         {/* Modal Header */}
                         <div className="px-8 pt-8 pb-6 border-b border-white/10">
                             <h2 className="font-headline-md text-headline-md text-on-surface flex items-center gap-3">
-                                <span className="material-symbols-outlined text-primary">upload_file</span>
-                                New Submission
+                                <span className="material-symbols-outlined text-primary">{isEditing ? 'edit_document' : 'upload_file'}</span>
+                                {isEditing ? 'Edit Submission' : 'New Submission'}
                             </h2>
                             <p className="font-body-md text-body-md text-on-surface-variant mt-2">
-                                Enter the details of the capstone design project to add it to the repository.
+                                {isEditing ? 'Update the details of the capstone design project.' : 'Enter the details of the capstone design project to add it to the repository.'}
                             </p>
                         </div>
                         
@@ -217,7 +247,7 @@ export default function Capstone({ projects, dosens }) {
                                             {data.document ? data.document.name : 'Drag and drop your PDF here'}
                                         </p>
                                         <p className="font-label-sm text-label-sm text-on-surface-variant mb-4">
-                                            {data.document ? `${(data.document.size / 1024 / 1024).toFixed(2)} MB` : 'or click to browse from your computer (Max 50MB)'}
+                                            {data.document ? `${(data.document.size / 1024 / 1024).toFixed(2)} MB` : (isEditing ? 'or click to upload a new file (Max 50MB)' : 'or click to browse from your computer (Max 50MB)')}
                                         </p>
                                         <button className="bg-white/5 border border-white/20 hover:bg-white/10 text-on-surface transition-all rounded-full px-6 py-2 font-label-sm text-label-sm" type="button">
                                             Browse Files
@@ -236,8 +266,8 @@ export default function Capstone({ projects, dosens }) {
                                     Cancel
                                 </button>
                                 <button disabled={processing} className="bg-gradient-to-r from-primary to-tertiary-container text-on-primary-container shadow-[0_0_15px_rgba(192,193,255,0.4)] hover:shadow-[0_0_25px_rgba(192,193,255,0.6)] rounded-lg px-8 py-2.5 font-label-sm text-label-sm uppercase tracking-wider flex items-center gap-2 disabled:opacity-50" type="submit">
-                                    <span className="material-symbols-outlined text-[18px]">add</span>
-                                    Submit Project
+                                    <span className="material-symbols-outlined text-[18px]">{isEditing ? 'save' : 'add'}</span>
+                                    {isEditing ? 'Update Project' : 'Submit Project'}
                                 </button>
                             </div>
                         </form>

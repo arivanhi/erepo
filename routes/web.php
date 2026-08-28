@@ -22,12 +22,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/repository/capstone', [\App\Http\Controllers\RepositoryController::class, 'capstone'])->name('repository.capstone');
     Route::post('/repository/capstone', [\App\Http\Controllers\RepositoryController::class, 'storeCapstone'])->name('repository.capstone.store');
     Route::post('/repository/capstone/{id}/approve', [\App\Http\Controllers\RepositoryController::class, 'approveCapstone'])->name('repository.capstone.approve');
+    Route::post('/repository/capstone/{id}/update', [\App\Http\Controllers\RepositoryController::class, 'updateCapstone'])->name('repository.capstone.update');
     Route::delete('/repository/capstone/{id}/delete', [\App\Http\Controllers\RepositoryController::class, 'deleteCapstone'])->name('repository.capstone.delete');
     Route::get('/repository/capstone/{id}/download', [\App\Http\Controllers\RepositoryController::class, 'downloadCapstone'])->name('repository.capstone.download');
 
     Route::get('/repository/script', [\App\Http\Controllers\RepositoryController::class, 'script'])->name('repository.script');
     Route::post('/repository/script', [\App\Http\Controllers\RepositoryController::class, 'storeScript'])->name('repository.script.store');
     Route::post('/repository/script/{id}/approve', [\App\Http\Controllers\RepositoryController::class, 'approveScript'])->name('repository.script.approve');
+    Route::post('/repository/script/{id}/update', [\App\Http\Controllers\RepositoryController::class, 'updateScript'])->name('repository.script.update');
     Route::delete('/repository/script/{id}/delete', [\App\Http\Controllers\RepositoryController::class, 'deleteScript'])->name('repository.script.delete');
     Route::get('/repository/script/{id}/download', [\App\Http\Controllers\RepositoryController::class, 'downloadScript'])->name('repository.script.download');
     
