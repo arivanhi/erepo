@@ -13,11 +13,13 @@ class CapstoneProject extends Model
         'title',
         'academic_year',
         'group_id',
+        'capstone_team_id',
         'status',
         'ai_check_status',
         'ai_check_result',
         'ai_checked_at',
         'revision_note',
+        'acceptance_note',
         'reviewed_by',
         'reviewer_role',
         'reviewed_at',
@@ -43,6 +45,11 @@ class CapstoneProject extends Model
     public function dosen()
     {
         return $this->belongsTo(User::class, 'dosen_id');
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(CapstoneTeam::class, 'capstone_team_id');
     }
 
     public function reviewer()

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\CheckCapstonePdfJob;
 use App\Models\CapstoneProject;
+use App\Models\CapstoneTeam;
 use App\Models\ScriptProject;
 use App\Models\User;
 use App\Services\RepositoryNotificationService;
@@ -23,13 +24,32 @@ class RepositoryController extends Controller
         return in_array($user->role, ['admin', 'koordinator_ta', 'kaprodi'], true);
     }
 
+    private function resolveActiveTeamForStudent(Request $request, User $actor): ?CapstoneTeam
+    {
+        if ($actor->role !== 'mahasiswa') {
+            return null;
+        }
+
+        $sessionTeamId = $request->session()->get('active_capstone_team_id');
+        if ($sessionTeamId) {
+            $team = CapstoneTeam::with('members')->find($sessionTeamId);
+            if ($team) {
+                return $team;
+            }
+        }
+
+        return $actor->capstoneTeams()->with('members')->latest('capstone_teams.id')->first();
+    }
+
     /**
-     * Resolve validated student member IDs for a Capstone submission.
-     *
      * @return array<int, int>
      */
-    private function resolveMemberIds(Request $request, User $actor, ?CapstoneProject $existing = null): array
+    private function resolveMemberIds(Request $request, User $actor, ?CapstoneProject $existing = null, ?CapstoneTeam $team = null): array
     {
+        if ($team && $team->members->isNotEmpty()) {
+            return $team->members->pluck('id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+        }
+
         $submittedIds = collect($request->input('member_ids', []))
             ->map(fn ($id) => (int) $id)
             ->filter(fn ($id) => $id > 0)
@@ -99,6 +119,15 @@ class RepositoryController extends Controller
     {
         /** @var User $actor */
         $actor = Auth::user();
+        $activeTeam = $this->resolveActiveTeamForStudent($request, $actor);
+
+        if ($activeTeam) {
+            $request->merge([
+                'group_id' => $activeTeam->group_code,
+                'academic_year' => $activeTeam->academic_year,
+                'dosen_id' => $activeTeam->dosen_id ?? $request->input('dosen_id'),
+            ]);
+        }
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -114,9 +143,10 @@ class RepositoryController extends Controller
             'document.max' => 'Ukuran file PDF maksimal 50 MB.',
         ]);
 
-        $memberIds = $this->resolveMemberIds($request, $actor);
+        $memberIds = $this->resolveMemberIds($request, $actor, null, $activeTeam);
 
         $project = new CapstoneProject($request->only('title', 'academic_year', 'group_id', 'dosen_id'));
+        $project->capstone_team_id = $activeTeam?->id;
         $project->user_id = $actor->role === 'mahasiswa'
             ? $actor->id
             : ($memberIds[0] ?? $actor->id);
@@ -138,7 +168,6 @@ class RepositoryController extends Controller
         $project->members()->sync($memberIds);
         $project->load(['members', 'user', 'dosen']);
 
-        // Notify group students that their submission was received and is undergoing AI check
         $this->notifier->notifyStudentsUploadedChecking($project);
 
         CheckCapstonePdfJob::dispatch($project->id);
@@ -153,6 +182,27 @@ class RepositoryController extends Controller
         }
 
         return redirect()->back()->with('message', 'Dokumen berhasil diunggah! AI Qwen sedang memeriksa kelengkapan tanda tangan dan Daftar Isi...');
+    }
+
+    public function viewCapstone($id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $project = CapstoneProject::with('members')->findOrFail($id);
+
+        $canView = $this->hasFullRepositoryAccess($user)
+            || $project->status === 'approved'
+            || (int) $project->dosen_id === (int) $user->id
+            || $project->isMember((int) $user->id);
+
+        abort_unless($canView, 403, 'Anda tidak memiliki akses untuk membuka dokumen ini.');
+        abort_if(! $project->document_path || ! Storage::disk('public')->exists($project->document_path), 404, 'File PDF tidak ditemukan.');
+
+        return response()->file(Storage::disk('public')->path($project->document_path), [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . basename($project->document_path) . '"',
+            'X-Robots-Tag' => 'noindex, nofollow, noarchive, nosnippet',
+        ]);
     }
 
     public function script()
@@ -226,10 +276,7 @@ class RepositoryController extends Controller
         $project->save();
         $project->load(['user', 'capstoneProject.members', 'capstoneProject.dosen']);
 
-        // 1. Notify group students that Script is uploaded and waiting verification
         $this->notifier->notifyStudentsPendingVerification($project, 'Script / Source Code');
-
-        // 2. Notify Dosen Pembimbing, Koordinator TA, and Admin
         $this->notifier->notifyVerifiersNewSubmission($project, 'Script / Source Code');
 
         return redirect()->back()->with('message', 'Script uploaded successfully!');
@@ -250,7 +297,7 @@ class RepositoryController extends Controller
         }
 
         if ($project->status === 'rejected') {
-            return redirect()->back()->with('error', 'Dokumen sedang ditahan karena belum lengkap. Mahasiswa wajib mengunggah ulang file PDF yang sudah diperbaiki.');
+            return redirect()->back()->with('error', 'Dokumen sedang ditahan karena belum lengkap. Gunakan tombol "Terima dgn Catatan" (khusus Koordinator/Admin) atau tunggu mahasiswa upload ulang.');
         }
 
         $project->update([
@@ -264,6 +311,44 @@ class RepositoryController extends Controller
         $this->notifier->notifyStudentsApproved($project, 'Capstone Design', $user);
 
         return redirect()->back()->with('message', 'Capstone approved!');
+    }
+
+    /**
+     * v1.2: Koordinator TA & Admin override to accept an AI-incomplete PDF with recorded note + email to Mahasiswa & Pembimbing.
+     */
+    public function acceptIncompleteCapstone(Request $request, $id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        if (! in_array($user->role, ['admin', 'koordinator_ta'], true)) {
+            abort(403, 'Hanya Koordinator TA dan Admin yang dapat menerima dokumen belum lengkap dengan catatan.');
+        }
+
+        $project = CapstoneProject::with(['user', 'members', 'dosen'])->findOrFail($id);
+
+        $validated = $request->validate([
+            'acceptance_note' => 'required|string|max:2000',
+        ], [
+            'acceptance_note.required' => 'Catatan penerimaan wajib diisi untuk disimpan dan dikirim ke mahasiswa serta pembimbing.',
+        ]);
+
+        $note = trim($validated['acceptance_note']);
+
+        $project->update([
+            'status' => 'approved',
+            'acceptance_note' => $note,
+            'reviewed_by' => $user->id,
+            'reviewer_role' => $user->role,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->notifier->notifyAcceptedWithNote($project, $user, $note);
+
+        return redirect()->back()->with(
+            'message',
+            'Dokumen berhasil diterima dengan catatan! Catatan telah disimpan dan dikirim via email ke Mahasiswa & Dosen Pembimbing.'
+        );
     }
 
     public function requestReuploadCapstone(Request $request, $id)
@@ -285,6 +370,7 @@ class RepositoryController extends Controller
         $project->update([
             'status' => 'rejected',
             'revision_note' => trim($validated['revision_note']),
+            'acceptance_note' => null,
             'reviewed_by' => $user->id,
             'reviewer_role' => $user->role,
             'reviewed_at' => now(),
@@ -361,6 +447,15 @@ class RepositoryController extends Controller
             return redirect()->back()->with('error', 'Unauthorized to edit this project.');
         }
 
+        $activeTeam = $this->resolveActiveTeamForStudent($request, $user);
+        if ($activeTeam) {
+            $request->merge([
+                'group_id' => $activeTeam->group_code,
+                'academic_year' => $activeTeam->academic_year,
+                'dosen_id' => $activeTeam->dosen_id ?? $project->dosen_id,
+            ]);
+        }
+
         $mustReuploadPdf = $project->status === 'rejected' && $user->role === 'mahasiswa';
 
         $request->validate([
@@ -395,6 +490,7 @@ class RepositoryController extends Controller
             $project->ai_check_result = null;
             $project->ai_checked_at = null;
             $project->revision_note = null;
+            $project->acceptance_note = null;
             $project->reviewed_by = null;
             $project->reviewer_role = null;
             $project->reviewed_at = null;
@@ -403,8 +499,8 @@ class RepositoryController extends Controller
 
         $project->save();
 
-        if ($request->has('member_ids')) {
-            $memberIds = $this->resolveMemberIds($request, $user, $project);
+        if ($activeTeam || $request->has('member_ids')) {
+            $memberIds = $this->resolveMemberIds($request, $user, $project, $activeTeam);
             $project->members()->sync($memberIds);
         }
 
@@ -574,9 +670,21 @@ class RepositoryController extends Controller
 
     public function downloadCapstone($id)
     {
-        $project = CapstoneProject::findOrFail($id);
+        /** @var User $user */
+        $user = Auth::user();
+        $project = CapstoneProject::with('members')->findOrFail($id);
+
+        $canDownload = $this->hasFullRepositoryAccess($user)
+            || $project->status === 'approved'
+            || (int) $project->dosen_id === (int) $user->id
+            || $project->isMember((int) $user->id);
+
+        abort_unless($canDownload, 403);
+
         if ($project->document_path && Storage::disk('public')->exists($project->document_path)) {
-            return Storage::disk('public')->download($project->document_path);
+            return Storage::disk('public')->download($project->document_path, basename($project->document_path), [
+                'X-Robots-Tag' => 'noindex, nofollow, noarchive, nosnippet',
+            ]);
         }
 
         return redirect()->back()->with('error', 'File not found.');
@@ -584,9 +692,23 @@ class RepositoryController extends Controller
 
     public function downloadScript($id)
     {
-        $project = ScriptProject::findOrFail($id);
+        /** @var User $user */
+        $user = Auth::user();
+        $project = ScriptProject::with('capstoneProject.members')->findOrFail($id);
+
+        $isGroupMember = $project->capstoneProject && $project->capstoneProject->isMember((int) $user->id);
+        $canDownload = $this->hasFullRepositoryAccess($user)
+            || $project->status === 'approved'
+            || (int) ($project->capstoneProject?->dosen_id) === (int) $user->id
+            || (int) $project->user_id === (int) $user->id
+            || $isGroupMember;
+
+        abort_unless($canDownload, 403);
+
         if ($project->archive_path && Storage::disk('public')->exists($project->archive_path)) {
-            return Storage::disk('public')->download($project->archive_path);
+            return Storage::disk('public')->download($project->archive_path, basename($project->archive_path), [
+                'X-Robots-Tag' => 'noindex, nofollow, noarchive, nosnippet',
+            ]);
         }
 
         return redirect()->back()->with('error', 'File not found.');

@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function Dashboard({ stats, recentActivities }) {
-    const user = usePage().props.auth.user;
+    const { user, capstoneTeam } = usePage().props.auth;
 
     const renderStatusLabel = (status) => {
         if (status === 'approved') return 'Approved';
@@ -29,8 +29,20 @@ export default function Dashboard({ stats, recentActivities }) {
                 <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/20"></div>
                 <div>
                     <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface tracking-tight">
-                        Welcome back, <span className="gradient-text">{user.name}</span>
+                        Welcome back, <span className="gradient-text">{capstoneTeam ? `Tim ${capstoneTeam.group_code}` : user.name}</span>
                     </h2>
+                    {capstoneTeam && (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
+                            <span className="inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px]">groups</span>
+                                {capstoneTeam.members?.map((m) => m.name).join(', ')}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-on-surface-variant">
+                                <span className="material-symbols-outlined text-[15px]">school</span>
+                                {capstoneTeam.dosen?.name || '-'} ({capstoneTeam.academic_year})
+                            </span>
+                        </div>
+                    )}
                     <p className="font-body-lg text-body-lg text-on-surface-variant mt-2 max-w-2xl">
                         Ringkasan progres repositori Anda dan anggota kelompok.
                         {stats.rejected > 0

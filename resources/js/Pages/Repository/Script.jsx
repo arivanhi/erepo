@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import HoverTooltip from '@/Components/HoverTooltip';
 import { Head, usePage, router, useForm } from '@inertiajs/react';
 import { useState, useRef } from 'react';
 import Pagination from '@/Components/Pagination';
@@ -6,6 +7,7 @@ import Pagination from '@/Components/Pagination';
 export default function Script({ projects, capstones = [] }) {
     const user = usePage().props.auth.user;
     const isRepoAdmin = ['admin', 'koordinator_ta', 'kaprodi'].includes(user.role);
+    const isStaffView = ['admin', 'koordinator_ta', 'dosen', 'kaprodi'].includes(user.role);
 
     const [confirmApproveId, setConfirmApproveId] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -163,11 +165,11 @@ export default function Script({ projects, capstones = [] }) {
                 <table className="w-full text-left border-collapse min-w-[650px]">
                     <thead>
                         <tr className="bg-surface-container/40 border-b border-white/10 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-                            <th className="px-6 py-4 font-semibold w-2/5">Project & Anggota Kelompok</th>
-                            <th className="px-6 py-4 font-semibold w-1/6">Academic Year</th>
-                            <th className="px-6 py-4 font-semibold w-1/6">Group ID</th>
-                            <th className="px-6 py-4 font-semibold w-1/6">Status</th>
-                            <th className="px-6 py-4 font-semibold text-right w-1/6">Action</th>
+                            <th className="px-6 py-4 font-semibold w-full">Project &amp; Anggota Kelompok</th>
+                            <th className="px-4 py-4 font-semibold whitespace-nowrap">Academic Year</th>
+                            <th className="px-4 py-4 font-semibold whitespace-nowrap">Group ID</th>
+                            <th className={`px-4 py-4 font-semibold whitespace-nowrap ${isStaffView ? 'text-center' : ''}`}>Status</th>
+                            <th className="px-6 py-4 font-semibold text-right whitespace-nowrap">Action</th>
                         </tr>
                     </thead>
                     <tbody className="font-body-md text-body-md text-on-surface divide-y divide-white/5">
@@ -212,82 +214,115 @@ export default function Script({ projects, capstones = [] }) {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-5 text-on-surface-variant whitespace-nowrap">{project.academic_year}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap">
+                                    <td className="px-4 py-5 text-on-surface-variant whitespace-nowrap">{project.academic_year}</td>
+                                    <td className="px-4 py-5 whitespace-nowrap">
                                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-on-surface-variant font-label-sm text-label-sm">
                                             {project.group_id}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <span
-                                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-sm text-label-sm border ${
-                                                project.status === 'approved'
-                                                    ? 'bg-primary/10 border-primary/20 text-primary'
-                                                    : project.status === 'rejected'
-                                                        ? 'bg-error/15 border-error/35 text-error font-semibold'
-                                                        : 'bg-tertiary/10 border-tertiary/20 text-tertiary'
-                                            }`}
-                                        >
-                                            <span className="material-symbols-outlined text-[14px]">
-                                                {project.status === 'approved' ? 'check_circle' : project.status === 'rejected' ? 'block' : 'schedule'}
-                                            </span>
-                                            <span>
-                                                {project.status === 'rejected' ? 'Diminta Upload Ulang' : project.status === 'approved' ? 'Approved' : 'Pending'}
-                                            </span>
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-5 text-right whitespace-nowrap">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {project.archive_path && (
-                                                <a
-                                                    href={route('repository.script.download', project.id)}
-                                                    title="Download Source Code"
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-secondary hover:border-secondary hover:bg-secondary/10 transition-all duration-200 font-label-sm text-label-sm"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">download</span>
-                                                </a>
-                                            )}
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => handleEdit(project)}
-                                                    title={project.status === 'rejected' ? 'Upload Ulang Source Code' : 'Edit Source Code'}
-                                                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 font-label-sm text-label-sm ${
-                                                        project.status === 'rejected'
-                                                            ? 'border-error/50 bg-error/15 text-error hover:bg-error/25 font-semibold'
-                                                            : 'border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10'
+                                    <td className={`px-4 py-5 ${isStaffView ? 'text-center' : ''}`}>
+                                        {isStaffView ? (
+                                            <HoverTooltip
+                                                text={
+                                                    project.status === 'approved'
+                                                        ? 'Approved (Terverifikasi)'
+                                                        : project.status === 'rejected'
+                                                            ? 'Diminta Upload Ulang'
+                                                            : 'Pending — Menunggu Verifikasi'
+                                                }
+                                            >
+                                                <span
+                                                    className={`w-9 h-9 rounded-full inline-flex items-center justify-center border ${
+                                                        project.status === 'approved'
+                                                            ? 'bg-primary/20 border-primary/35 text-primary'
+                                                            : project.status === 'rejected'
+                                                                ? 'bg-error/20 border-error/45 text-error'
+                                                                : 'bg-tertiary/20 border-tertiary/35 text-tertiary'
                                                     }`}
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">
-                                                        {project.status === 'rejected' ? 'cloud_upload' : 'edit'}
+                                                        {project.status === 'approved' ? 'check_circle' : project.status === 'rejected' ? 'gpp_bad' : 'schedule'}
                                                     </span>
-                                                    {project.status === 'rejected' && <span className="text-xs">Upload Ulang</span>}
-                                                </button>
+                                                </span>
+                                            </HoverTooltip>
+                                        ) : (
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-sm text-label-sm border ${
+                                                    project.status === 'approved'
+                                                        ? 'bg-primary/10 border-primary/20 text-primary'
+                                                        : project.status === 'rejected'
+                                                            ? 'bg-error/15 border-error/35 text-error font-semibold'
+                                                            : 'bg-tertiary/10 border-tertiary/20 text-tertiary'
+                                                }`}
+                                            >
+                                                <span className="material-symbols-outlined text-[14px]">
+                                                    {project.status === 'approved' ? 'check_circle' : project.status === 'rejected' ? 'block' : 'schedule'}
+                                                </span>
+                                                <span>
+                                                    {project.status === 'rejected' ? 'Diminta Upload Ulang' : project.status === 'approved' ? 'Approved' : 'Pending'}
+                                                </span>
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-5 text-right whitespace-nowrap">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            {project.archive_path && (
+                                                <HoverTooltip text="Unduh Source Code (ZIP/RAR)">
+                                                    <a
+                                                        href={route('repository.script.download', project.id)}
+                                                        className="w-9 h-9 rounded-lg border border-white/10 text-on-surface-variant hover:text-secondary hover:border-secondary hover:bg-secondary/10 transition-all inline-flex items-center justify-center"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">download</span>
+                                                    </a>
+                                                </HoverTooltip>
+                                            )}
+                                            {canEdit && (
+                                                <HoverTooltip text={project.status === 'rejected' ? 'Upload Ulang Source Code' : 'Edit Source Code'}>
+                                                    <button
+                                                        onClick={() => handleEdit(project)}
+                                                        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border transition-all duration-200 font-label-sm text-label-sm ${
+                                                            isStaffView ? 'w-9 h-9' : 'px-3 py-2'
+                                                        } ${
+                                                            project.status === 'rejected'
+                                                                ? 'border-error/50 bg-error/15 text-error hover:bg-error/25 font-semibold'
+                                                                : 'border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10'
+                                                        }`}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            {project.status === 'rejected' ? 'cloud_upload' : 'edit'}
+                                                        </span>
+                                                        {!isStaffView && project.status === 'rejected' && <span className="text-xs">Upload Ulang</span>}
+                                                    </button>
+                                                </HoverTooltip>
                                             )}
                                             {canManageApproval && (
                                                 <>
                                                     {project.status === 'pending' && (
-                                                        <button
-                                                            onClick={() => setConfirmApproveId(project.id)}
-                                                            title="Verifikasi & Setujui Source Code"
-                                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10 transition-all duration-200 font-label-sm text-label-sm"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">thumb_up</span>
-                                                        </button>
+                                                        <HoverTooltip text="Verifikasi & Setujui Source Code (Approve)">
+                                                            <button
+                                                                onClick={() => setConfirmApproveId(project.id)}
+                                                                className="w-9 h-9 rounded-lg border border-white/10 text-on-surface-variant hover:text-primary hover:border-primary hover:bg-primary/10 transition-all inline-flex items-center justify-center"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+                                                            </button>
+                                                        </HoverTooltip>
                                                     )}
-                                                    <button
-                                                        onClick={() => openRequestReupload(project)}
-                                                        title="Minta Mahasiswa Upload Ulang Source Code"
-                                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-tertiary hover:border-tertiary hover:bg-tertiary/10 transition-all duration-200 font-label-sm text-label-sm"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">assignment_return</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setConfirmDeleteId(project.id)}
-                                                        title="Delete Source Code"
-                                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-on-surface-variant hover:text-error hover:border-error hover:bg-error/10 transition-all duration-200 font-label-sm text-label-sm"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
+                                                    <HoverTooltip text="Minta Mahasiswa Upload Ulang Source Code">
+                                                        <button
+                                                            onClick={() => openRequestReupload(project)}
+                                                            className="w-9 h-9 rounded-lg border border-white/10 text-on-surface-variant hover:text-tertiary hover:border-tertiary hover:bg-tertiary/10 transition-all inline-flex items-center justify-center"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                                                        </button>
+                                                    </HoverTooltip>
+                                                    <HoverTooltip text="Hapus Source Code">
+                                                        <button
+                                                            onClick={() => setConfirmDeleteId(project.id)}
+                                                            className="w-9 h-9 rounded-lg border border-white/10 text-on-surface-variant hover:text-error hover:border-error hover:bg-error/10 transition-all inline-flex items-center justify-center"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        </button>
+                                                    </HoverTooltip>
                                                 </>
                                             )}
                                         </div>

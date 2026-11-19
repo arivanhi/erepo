@@ -3,9 +3,15 @@
 namespace App\Services;
 
 use App\Mail\ApprovalRequestMail;
+use App\Mail\CapstoneAcceptedWithNoteMail;
+use App\Mail\CapstoneTeamLoginTokenMail;
 use App\Mail\ProjectApprovedMail;
+use App\Mail\PublicDownloadTokenMail;
+use App\Mail\ScriptDownloadPermissionMail;
 use App\Mail\StudentSubmissionStatusMail;
 use App\Models\CapstoneProject;
+use App\Models\CapstoneTeam;
+use App\Models\PublicDownloadRequest;
 use App\Models\ScriptProject;
 use App\Models\User;
 use Illuminate\Mail\Mailable;
@@ -72,8 +78,6 @@ class RepositoryNotificationService
     }
 
     /**
-     * Resolve all group student emails for a Capstone or Script project.
-     *
      * @return array<int, string>
      */
     public function resolveStudentEmails(CapstoneProject|ScriptProject $project): array
@@ -100,8 +104,6 @@ class RepositoryNotificationService
     }
 
     /**
-     * Resolve verifier emails: Dosen Pembimbing + all Koordinator TA + all Admin.
-     *
      * @return array<int, string>
      */
     public function resolveVerifierEmails(CapstoneProject|ScriptProject $project): array
@@ -129,9 +131,6 @@ class RepositoryNotificationService
         return $this->sanitizeRecipients($emails);
     }
 
-    /**
-     * 1. Notify group students that their Capstone PDF was uploaded and is being checked by AI.
-     */
     public function notifyStudentsUploadedChecking(CapstoneProject $project): void
     {
         $memberNames = $this->resolveMemberNames($project);
@@ -145,9 +144,6 @@ class RepositoryNotificationService
         ));
     }
 
-    /**
-     * 2. Notify group students that their submission is waiting for verification (Capstone passed AI or Script uploaded).
-     */
     public function notifyStudentsPendingVerification(CapstoneProject|ScriptProject $project, string $projectType): void
     {
         $memberNames = $this->resolveMemberNames($project);
@@ -161,9 +157,6 @@ class RepositoryNotificationService
         ));
     }
 
-    /**
-     * 3. Notify Dosen Pembimbing, Koordinator TA, and Admin that a submission is ready for verification.
-     */
     public function notifyVerifiersNewSubmission(CapstoneProject|ScriptProject $project, string $projectType): void
     {
         $memberNames = $this->resolveMemberNames($project);
@@ -179,8 +172,6 @@ class RepositoryNotificationService
     }
 
     /**
-     * 4a. Notify group students that AI held the Capstone PDF and re-upload is required.
-     *
      * @param  array<int, string>  $missingItems
      */
     public function notifyStudentsAiReuploadRequired(CapstoneProject $project, array $missingItems): void
@@ -197,9 +188,6 @@ class RepositoryNotificationService
         ));
     }
 
-    /**
-     * 4b. Notify group students that Dosen Pembimbing, Koordinator TA, or Admin requested a re-upload.
-     */
     public function notifyStudentsReviewerReuploadRequired(
         CapstoneProject|ScriptProject $project,
         string $projectType,
@@ -221,9 +209,6 @@ class RepositoryNotificationService
         ));
     }
 
-    /**
-     * 5. Notify group students that their submission has been verified & approved.
-     */
     public function notifyStudentsApproved(
         CapstoneProject|ScriptProject $project,
         string $projectType,
@@ -239,6 +224,118 @@ class RepositoryNotificationService
             $memberNames,
             $reviewerLabel
         ));
+    }
+
+    /**
+     * v1.2: Notify group students AND Dosen Pembimbing when Koordinator TA / Admin accepts incomplete PDF with note.
+     */
+    public function notifyAcceptedWithNote(
+        CapstoneProject $project,
+        User $reviewer,
+        string $acceptanceNote
+    ): void {
+        $project->loadMissing(['members', 'user', 'dosen']);
+        $memberNames = $this->resolveMemberNames($project);
+        $dosenName = $this->resolveDosenName($project);
+        $reviewerLabel = $this->formatReviewerLabel($reviewer);
+        $aiMissing = $project->ai_check_result['missing_items'] ?? [];
+
+        $rawRecipients = collect($this->resolveStudentEmails($project));
+        if ($project->dosen?->email) {
+            $rawRecipients->push($project->dosen->email);
+        }
+        $recipients = $this->sanitizeRecipients($rawRecipients);
+
+        $this->queueToMany($recipients, fn () => new CapstoneAcceptedWithNoteMail(
+            $project,
+            $memberNames,
+            $dosenName,
+            $reviewerLabel,
+            $acceptanceNote,
+            is_array($aiMissing) ? $aiMissing : []
+        ));
+    }
+
+    /**
+     * v1.2: Send 1-month Capstone Team login token to all team members.
+     */
+    public function sendCapstoneTeamLoginToken(CapstoneTeam $team, string $plainToken): int
+    {
+        $team->loadMissing('members');
+        $memberNames = $team->members->pluck('name')->filter()->join(', ') ?: $team->group_code;
+        $expiresFormatted = ($team->login_token_expires_at ?? now()->addDays(30))
+            ->timezone('Asia/Jakarta')
+            ->format('d M Y H:i');
+
+        $recipients = $this->sanitizeRecipients($team->members->pluck('email'));
+
+        $this->queueToMany($recipients, fn () => new CapstoneTeamLoginTokenMail(
+            $team,
+            $plainToken,
+            $expiresFormatted,
+            $memberNames
+        ));
+
+        return count($recipients);
+    }
+
+    /**
+     * v1.2: Send 1-day download token to UDINUS requester (for PDF or approved Script).
+     */
+    public function sendPublicDownloadToken(
+        PublicDownloadRequest $downloadReq,
+        string $documentTypeLabel,
+        string $projectTitle,
+        string $groupCode,
+        string $directDownloadUrl
+    ): void {
+        $recipients = $this->sanitizeRecipients(collect([$downloadReq->requester_email]));
+        $expiresFormatted = ($downloadReq->expires_at ?? now()->addDay())
+            ->timezone('Asia/Jakarta')
+            ->format('d M Y H:i');
+
+        $this->queueToMany($recipients, fn () => new PublicDownloadTokenMail(
+            $documentTypeLabel,
+            $projectTitle,
+            $groupCode,
+            (string) $downloadReq->download_code,
+            $directDownloadUrl,
+            $expiresFormatted
+        ));
+    }
+
+    /**
+     * v1.2: Send Script download permission request to Koordinator TA, Dosen Pembimbing, and Mahasiswa owners.
+     */
+    public function sendScriptDownloadPermissionRequest(
+        ScriptProject $script,
+        PublicDownloadRequest $downloadReq,
+        string $approvalPageUrl
+    ): int {
+        $script->loadMissing(['user', 'capstoneProject.members', 'capstoneProject.dosen']);
+        $memberNames = $this->resolveMemberNames($script);
+
+        $rawEmails = collect($this->resolveStudentEmails($script));
+
+        if ($script->capstoneProject?->dosen?->email) {
+            $rawEmails->push($script->capstoneProject->dosen->email);
+        }
+
+        $staffEmails = User::query()
+            ->whereIn('role', ['koordinator_ta', 'admin'])
+            ->pluck('email');
+
+        $rawEmails = $rawEmails->concat($staffEmails);
+        $recipients = $this->sanitizeRecipients($rawEmails);
+
+        $this->queueToMany($recipients, fn () => new ScriptDownloadPermissionMail(
+            $script,
+            $downloadReq,
+            $memberNames,
+            $approvalPageUrl
+        ));
+
+        return count($recipients);
     }
 
     /**

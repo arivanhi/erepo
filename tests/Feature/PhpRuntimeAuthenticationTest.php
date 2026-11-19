@@ -30,9 +30,9 @@ class PhpRuntimeAuthenticationTest extends TestCase
         });
     }
 
-    public function test_all_roles_can_login_by_email_and_identity_then_logout(): void
+    public function test_staff_roles_can_login_by_email_and_identity_while_mahasiswa_uses_capstone_token(): void
     {
-        foreach (['admin', 'mahasiswa', 'dosen', 'kaprodi', 'koordinator_ta'] as $role) {
+        foreach (['admin', 'dosen', 'kaprodi', 'koordinator_ta'] as $role) {
             $user = User::create([
                 'name' => 'Runtime Test',
                 'email' => $role.'@example.test',
@@ -52,6 +52,21 @@ class PhpRuntimeAuthenticationTest extends TestCase
                 $this->assertGuest();
             }
         }
+
+        // Mahasiswa password login is blocked in v1.2 (must use Kode Capstone + 1-Month Token)
+        $mhs = User::create([
+            'name' => 'Mahasiswa Runtime',
+            'email' => 'mhs@mhs.dinus.ac.id',
+            'identity_number' => 'E11.2025.00001',
+            'role' => 'mahasiswa',
+            'password' => 'Runtime-test-password-2026!',
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'login' => $mhs->identity_number,
+            'password' => 'Runtime-test-password-2026!',
+        ])->assertRedirect('/login')->assertSessionHasErrors('login');
+        $this->assertGuest();
     }
 
     public function test_invalid_password_is_rejected(): void

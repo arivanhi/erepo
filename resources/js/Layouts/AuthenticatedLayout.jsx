@@ -6,10 +6,13 @@ export default function AuthenticatedLayout({ header, children }) {
     const { auth, flash } = usePage().props;
     const { url } = usePage();
     const user = auth.user;
+    const capstoneTeam = auth.capstoneTeam;
+    const pendingDownloadCount = auth.pendingDownloadRequestsCount || 0;
     const [showingMobileMenu, setShowingMobileMenu] = useState(false);
 
     const formatRoleLabel = (role) => {
         if (role === 'koordinator_ta') return 'Koordinator TA';
+        if (role === 'mahasiswa' && capstoneTeam) return `Tim ${capstoneTeam.group_code}`;
         return role;
     };
 
@@ -39,7 +42,6 @@ export default function AuthenticatedLayout({ header, children }) {
         }
     }, [flash]);
 
-    // Dynamic menu items based on role (Assign Account is strictly Admin-only)
     const menuItems = [
         { name: 'Dashboard Utama', icon: 'dashboard', route: 'dashboard' },
     ];
@@ -48,10 +50,23 @@ export default function AuthenticatedLayout({ header, children }) {
         menuItems.push({ name: 'Assign Account', icon: 'person_add', route: 'assign-account' });
     }
 
+    if (user.role === 'admin' || user.role === 'koordinator_ta') {
+        menuItems.push({ name: 'Add Capstone Team', icon: 'group_add', route: 'capstone-teams' });
+    }
+
     menuItems.push(
         { name: 'Repository Capstone Design', icon: 'school', route: 'repository.capstone' },
         { name: 'Repository Script', icon: 'description', route: 'repository.script' }
     );
+
+    if (['admin', 'koordinator_ta', 'dosen', 'kaprodi'].includes(user.role)) {
+        menuItems.push({
+            name: 'Verifikasi Permintaan Download',
+            icon: 'fact_check',
+            route: 'download-requests.index',
+            badge: pendingDownloadCount,
+        });
+    }
 
     const currentRoute = route().current();
 
@@ -61,12 +76,11 @@ export default function AuthenticatedLayout({ header, children }) {
             {/* TopNavBar for Mobile */}
             <nav className="md:hidden w-full h-20 flex-shrink-0 bg-surface/40 backdrop-blur-md shadow-sm flex justify-between items-center px-container-padding-mobile sticky top-0 z-40 border-b border-white/5">
                 <div className="font-headline-md text-headline-md font-bold text-primary flex items-center gap-2">
-                    <img src="/images/logo/logo.png" alt="Logo" className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display='none'} />
-                    ThesisCloud
+                    <img src="/images/logo/logo.png" alt="Logo" className="w-8 h-8 rounded-full" onError={(e) => { e.target.style.display = 'none'; }} />
+                    EREPO Elektro
                 </div>
                 <div className="flex gap-4">
-                    <span className="material-symbols-outlined text-primary hover:text-primary transition-all duration-200 cursor-pointer">notifications</span>
-                    <span className="material-symbols-outlined text-primary hover:text-primary transition-all duration-200 cursor-pointer" onClick={() => setShowingMobileMenu(!showingMobileMenu)}>menu</span>
+                    <span className="material-symbols-outlined text-primary cursor-pointer" onClick={() => setShowingMobileMenu(!showingMobileMenu)}>menu</span>
                 </div>
             </nav>
 
@@ -77,27 +91,42 @@ export default function AuthenticatedLayout({ header, children }) {
                         <span className="material-symbols-outlined text-primary cursor-pointer text-3xl" onClick={() => setShowingMobileMenu(false)}>close</span>
                     </div>
                     <div className="px-6 pb-6">
-                        <div className="font-headline-md text-headline-md font-bold text-primary mb-1">ThesisCloud</div>
-                        <div className="text-on-surface-variant font-label-sm text-label-sm capitalize">{formatRoleLabel(user.role)} Account</div>
+                        <div className="font-headline-md text-headline-md font-bold text-primary mb-1">EREPO Elektro</div>
+                        <div className="text-on-surface-variant font-label-sm text-label-sm capitalize">{formatRoleLabel(user.role)}</div>
                     </div>
                     <ul className="flex-1 px-6 space-y-2">
                         {menuItems.map((item, idx) => {
                             const isActive = currentRoute === item.route;
                             return (
                                 <li key={idx}>
-                                    <Link href={route(item.route)} onClick={() => setShowingMobileMenu(false)} className={`flex items-center gap-3 p-3 rounded transition-colors duration-200 ${isActive ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
-                                        <span className="material-symbols-outlined" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{item.icon}</span>
-                                        <span className="font-body-md text-body-md">{item.name}</span>
+                                    <Link href={route(item.route)} onClick={() => setShowingMobileMenu(false)} className={`flex items-center justify-between gap-2 p-3 rounded transition-colors duration-200 ${isActive ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
+                                        <span className="flex items-center gap-3">
+                                            <span className="material-symbols-outlined" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{item.icon}</span>
+                                            <span className="font-body-md text-body-md">{item.name}</span>
+                                        </span>
+                                        {item.badge > 0 && (
+                                            <span className="px-2 py-0.5 rounded-full bg-error text-on-error text-[11px] font-bold">
+                                                {item.badge}
+                                            </span>
+                                        )}
                                     </Link>
                                 </li>
                             );
                         })}
                         <li className="mt-4 pt-4 border-t border-white/10">
-                            <Link href={route('settings')} onClick={() => setShowingMobileMenu(false)} className={`flex items-center gap-3 p-3 rounded transition-colors duration-200 ${currentRoute === 'settings' ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
-                                <span className="material-symbols-outlined" style={currentRoute === 'settings' ? { fontVariationSettings: "'FILL' 1" } : {}}>settings</span>
-                                <span className="font-body-md text-body-md">Settings</span>
+                            <Link href={route('public.dashboard')} className="flex items-center gap-3 p-3 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/10">
+                                <span className="material-symbols-outlined">public</span>
+                                <span>Katalog Publik</span>
                             </Link>
                         </li>
+                        {user.role !== 'mahasiswa' && (
+                            <li>
+                                <Link href={route('settings')} onClick={() => setShowingMobileMenu(false)} className={`flex items-center gap-3 p-3 rounded transition-colors duration-200 ${currentRoute === 'settings' ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
+                                    <span className="material-symbols-outlined">settings</span>
+                                    <span className="font-body-md text-body-md">Settings</span>
+                                </Link>
+                            </li>
+                        )}
                         <li>
                             <Link href={route('logout')} method="post" as="button" className="w-full flex items-center gap-3 p-3 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors duration-200">
                                 <span className="material-symbols-outlined">logout</span>
@@ -113,14 +142,16 @@ export default function AuthenticatedLayout({ header, children }) {
                 <div className="px-6 mb-8 flex flex-col items-start">
                     <div className="flex flex-row items-center gap-4 w-full">
                         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/50 bg-white/5 flex items-center justify-center shrink-0">
-                            <img src="/images/logo/logo.png" alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                            <img src="/images/logo/logo.png" alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
                             <span className="material-symbols-outlined text-primary hidden" style={{ display: 'none' }}>person</span>
                         </div>
-                        <div>
-                            <div className="font-headline-md text-headline-md font-bold text-primary">
-                                ThesisCloud {user.role === 'admin' ? 'Admin' : user.role === 'koordinator_ta' ? 'Koordinator' : ''}
+                        <div className="min-w-0">
+                            <div className="font-headline-md text-headline-md font-bold text-primary truncate">
+                                EREPO {user.role === 'admin' ? 'Admin' : user.role === 'koordinator_ta' ? 'Koordinator' : ''}
                             </div>
-                            <div className="text-on-surface-variant font-label-sm text-label-sm mt-1 capitalize">{formatRoleLabel(user.role)} Account</div>
+                            <div className="text-on-surface-variant font-label-sm text-xs mt-0.5 capitalize truncate">
+                                {formatRoleLabel(user.role)}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -129,21 +160,36 @@ export default function AuthenticatedLayout({ header, children }) {
                         const isActive = currentRoute === item.route;
                         return (
                             <li key={idx}>
-                                <Link href={route(item.route)} className={`flex items-center gap-3 p-3 rounded transition-all duration-200 ${isActive ? 'text-primary font-bold border-r-4 border-primary bg-white/5 active:scale-95' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
-                                    <span className="material-symbols-outlined" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{item.icon}</span>
-                                    <span className="font-body-md text-body-md">{item.name}</span>
+                                <Link href={route(item.route)} className={`flex items-center justify-between gap-2 p-3 rounded transition-all duration-200 ${isActive ? 'text-primary font-bold border-r-4 border-primary bg-white/5 active:scale-95' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
+                                    <span className="flex items-center gap-3 min-w-0">
+                                        <span className="material-symbols-outlined shrink-0" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{item.icon}</span>
+                                        <span className="font-body-md text-sm leading-snug">{item.name}</span>
+                                    </span>
+                                    {item.badge > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-error text-on-error text-[11px] font-bold shrink-0">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </Link>
                             </li>
                         );
                     })}
                 </ul>
-                <ul className="px-4 mt-auto space-y-2 border-t border-white/10 pt-4">
+                <ul className="px-4 mt-auto space-y-1.5 border-t border-white/10 pt-4">
                     <li>
-                        <Link href={route('settings')} className={`flex items-center gap-3 p-3 rounded transition-colors duration-200 cursor-pointer ${currentRoute === 'settings' ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
-                            <span className="material-symbols-outlined" style={currentRoute === 'settings' ? { fontVariationSettings: "'FILL' 1" } : {}}>settings</span>
-                            <span className="font-body-md text-body-md">Settings</span>
+                        <Link href={route('public.dashboard')} className="flex items-center gap-3 p-3 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors">
+                            <span className="material-symbols-outlined">public</span>
+                            <span className="font-body-md text-body-md">Katalog Publik</span>
                         </Link>
                     </li>
+                    {user.role !== 'mahasiswa' && (
+                        <li>
+                            <Link href={route('settings')} className={`flex items-center gap-3 p-3 rounded transition-colors duration-200 cursor-pointer ${currentRoute === 'settings' ? 'text-primary font-bold border-r-4 border-primary bg-white/5' : 'text-on-surface-variant hover:text-on-surface hover:bg-white/10'}`}>
+                                <span className="material-symbols-outlined" style={currentRoute === 'settings' ? { fontVariationSettings: "'FILL' 1" } : {}}>settings</span>
+                                <span className="font-body-md text-body-md">Settings</span>
+                            </Link>
+                        </li>
+                    )}
                     <li>
                         <Link href={route('logout')} method="post" as="button" className="w-full flex items-center gap-3 p-3 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors duration-200 cursor-pointer">
                             <span className="material-symbols-outlined">logout</span>

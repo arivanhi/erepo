@@ -22,6 +22,12 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    Route::post('login/capstone-token', [\App\Http\Controllers\Auth\CapstoneAuthController::class, 'requestToken'])
+        ->name('login.capstone.token');
+
+    Route::post('login/capstone', [\App\Http\Controllers\Auth\CapstoneAuthController::class, 'loginWithToken'])
+        ->name('login.capstone.submit');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 

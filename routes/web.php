@@ -1,13 +1,25 @@
 <?php
 
+use App\Http\Controllers\CapstoneTeamController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicRepositoryController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+// Public Portal (Tanpa Login) — v1.2
+Route::get('/', [PublicRepositoryController::class, 'dashboard'])->name('public.dashboard');
+Route::get('/explore/capstone', [PublicRepositoryController::class, 'capstone'])->name('public.capstone');
+Route::get('/explore/capstone/{id}/abstract', [PublicRepositoryController::class, 'abstractMeta'])->name('public.capstone.abstract');
+Route::get('/explore/capstone/{id}/abstract/{page}', [PublicRepositoryController::class, 'abstractPage'])->whereNumber('page')->name('public.capstone.abstract.page');
+Route::post('/explore/capstone/{id}/request-token', [PublicRepositoryController::class, 'requestPdfToken'])->middleware('throttle:10,1')->name('public.capstone.request-token');
 
+Route::get('/explore/script', [PublicRepositoryController::class, 'script'])->name('public.script');
+Route::post('/explore/script/{id}/request-access', [PublicRepositoryController::class, 'requestScriptAccess'])->middleware('throttle:10,1')->name('public.script.request-access');
+
+Route::post('/explore/download/verify', [PublicRepositoryController::class, 'verifyAndDownload'])->middleware('throttle:15,1')->name('public.download.verify');
+Route::get('/explore/download/{urlToken}', [PublicRepositoryController::class, 'downloadByUrlToken'])->name('public.download.direct');
+
+// Internal Portal (Wajib Login)
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
@@ -18,9 +30,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/assign-account/{id}', [\App\Http\Controllers\AccountController::class, 'update'])->name('assign-account.update');
     Route::delete('/assign-account/{id}', [\App\Http\Controllers\AccountController::class, 'destroy'])->name('assign-account.destroy');
 
+    // Add Capstone Team (Koordinator TA & Admin)
+    Route::get('/capstone-teams', [CapstoneTeamController::class, 'index'])->name('capstone-teams');
+    Route::post('/capstone-teams', [CapstoneTeamController::class, 'store'])->name('capstone-teams.store');
+    Route::put('/capstone-teams/{id}', [CapstoneTeamController::class, 'update'])->name('capstone-teams.update');
+    Route::post('/capstone-teams/{id}/send-token', [CapstoneTeamController::class, 'sendToken'])->name('capstone-teams.send-token');
+    Route::delete('/capstone-teams/{id}', [CapstoneTeamController::class, 'destroy'])->name('capstone-teams.destroy');
+
+    // Verifikasi Permintaan Download Script (Dosen Pembimbing, Koordinator TA, Admin)
+    Route::get('/download-requests', [\App\Http\Controllers\DownloadRequestVerificationController::class, 'index'])->name('download-requests.index');
+    Route::post('/download-requests/{id}/decide', [\App\Http\Controllers\DownloadRequestVerificationController::class, 'decide'])->name('download-requests.decide');
+
     Route::get('/repository/capstone', [\App\Http\Controllers\RepositoryController::class, 'capstone'])->name('repository.capstone');
     Route::post('/repository/capstone', [\App\Http\Controllers\RepositoryController::class, 'storeCapstone'])->name('repository.capstone.store');
+    Route::get('/repository/capstone/{id}/view', [\App\Http\Controllers\RepositoryController::class, 'viewCapstone'])->name('repository.capstone.view');
     Route::post('/repository/capstone/{id}/approve', [\App\Http\Controllers\RepositoryController::class, 'approveCapstone'])->name('repository.capstone.approve');
+    Route::post('/repository/capstone/{id}/accept-with-note', [\App\Http\Controllers\RepositoryController::class, 'acceptIncompleteCapstone'])->name('repository.capstone.accept-with-note');
     Route::post('/repository/capstone/{id}/request-reupload', [\App\Http\Controllers\RepositoryController::class, 'requestReuploadCapstone'])->name('repository.capstone.request-reupload');
     Route::post('/repository/capstone/{id}/recheck', [\App\Http\Controllers\RepositoryController::class, 'recheckCapstone'])->name('repository.capstone.recheck');
     Route::post('/repository/capstone/{id}/update', [\App\Http\Controllers\RepositoryController::class, 'updateCapstone'])->name('repository.capstone.update');

@@ -1,2 +1,8 @@
 User-agent: *
-Disallow:
+Disallow: /
+
+User-agent: TurnitinBot
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /

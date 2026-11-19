@@ -45,6 +45,13 @@ class LoginRequest extends FormRequest
         $login = $this->input('login');
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'identity_number';
 
+        $candidateUser = \App\Models\User::where($field, $login)->first();
+        if ($candidateUser && $candidateUser->role === 'mahasiswa') {
+            throw ValidationException::withMessages([
+                'login' => 'Akun mahasiswa menggunakan Kode Capstone & Token Email 1 Bulan pada tab "Login Mahasiswa".',
+            ]);
+        }
+
         if (! Auth::attempt([$field => $login, 'password' => $this->input('password')], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
