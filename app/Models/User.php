@@ -29,4 +29,14 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function capstoneProjects()
+    {
+        return $this->belongsToMany(CapstoneProject::class, 'capstone_project_user')->withTimestamps();
+    }
+
+    public function isRepositoryAdmin(): bool
+    {
+        return in_array($this->role, ['admin', 'koordinator_ta'], true);
+    }
 }

@@ -18,6 +18,8 @@ services:
     volumes:
       - ./:/var/www
       - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - redis
       - db
@@ -57,7 +59,8 @@ services:
 
   # 4. Container phpMyAdmin -> Port 4010
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
+    # phpMyAdmin 5.2.3 / PHP 8.3.36, verified security-patched image.
+    image: phpmyadmin:5.2.3-apache@sha256:62a50b1419fe55b9b4c3cd6f5aed03a18f8f5b4a236f24735d76400bea75a5ff
     container_name: knowledge_bank_pma
     restart: unless-stopped
     environment:
@@ -66,6 +69,8 @@ services:
       PMA_PASSWORD: ${DB_PASSWORD:-root}
     ports:
       - "4010:80"
+    volumes:
+      - ./php/security.ini:/usr/local/etc/php/conf.d/zz-security.ini:ro
     depends_on:
       - db
     networks:
@@ -77,9 +82,30 @@ services:
     container_name: knowledge_bank_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redisdata:/data
+    networks:
+      - knowledge_bank_network
+
+  # 6. Container Queue Worker
+  queue_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: knowledge-bank-app
+    container_name: knowledge_bank_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    command: php artisan queue:work redis --tries=2 --timeout=300
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - db
     networks:
       - knowledge_bank_network
 

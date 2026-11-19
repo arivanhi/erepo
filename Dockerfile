@@ -1,4 +1,5 @@
-FROM php:8.3-fpm
+# Security release: CVE-2026-109618 and CVE-2026-109619.
+FROM php:8.3.36-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -9,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libzip-dev \
     libbrotli-dev \
+    poppler-utils \
     zip \
     unzip \
     nodejs \
@@ -21,7 +23,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip opcache
 
 # Install PECL extensions (Swoole, Redis)
-RUN pecl install swoole redis \
+RUN pecl install swoole-6.2.2 redis-6.3.0 \
     && docker-php-ext-enable swoole redis
 
 # Configure OPcache

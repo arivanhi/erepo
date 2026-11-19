@@ -153,8 +153,14 @@ export default function AssignAccount({ users, filters }) {
             case 'mahasiswa': return 'secondary';
             case 'dosen': return 'tertiary';
             case 'kaprodi': return 'primary';
+            case 'koordinator_ta': return 'primary';
             default: return 'primary';
         }
+    };
+
+    const getRoleLabel = (role) => {
+        if (role === 'koordinator_ta') return 'Koordinator TA';
+        return role;
     };
 
     return (
@@ -193,6 +199,7 @@ export default function AssignAccount({ users, filters }) {
                             >
                                 <option value="all">All Roles</option>
                                 <option value="admin">Admin</option>
+                                <option value="koordinator_ta">Koordinator TA</option>
                                 <option value="mahasiswa">Mahasiswa</option>
                                 <option value="dosen">Dosen</option>
                                 <option value="kaprodi">Kaprodi</option>
@@ -246,7 +253,7 @@ export default function AssignAccount({ users, filters }) {
                                             <td className="px-6 py-3">
                                                 <span className={`px-2.5 py-1 rounded-full bg-${color}/20 text-${color} border border-${color}/30 text-xs font-medium inline-flex items-center gap-1 capitalize`}>
                                                     <span className={`w-1.5 h-1.5 rounded-full bg-${color}`}></span>
-                                                    {u.role}
+                                                    {getRoleLabel(u.role)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-on-surface-variant font-mono text-xs">
@@ -313,6 +320,7 @@ export default function AssignAccount({ users, filters }) {
                                         <option value="mahasiswa">Mahasiswa</option>
                                         <option value="dosen">Dosen</option>
                                         <option value="kaprodi">Kaprodi</option>
+                                        <option value="koordinator_ta">Koordinator TA</option>
                                         <option value="admin">Admin</option>
                                     </select>
                                 </div>
@@ -424,6 +432,7 @@ export default function AssignAccount({ users, filters }) {
                                     <option value="mahasiswa">Mahasiswa</option>
                                     <option value="dosen">Dosen</option>
                                     <option value="kaprodi">Kaprodi</option>
+                                    <option value="koordinator_ta">Koordinator TA</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>

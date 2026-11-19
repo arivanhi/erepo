@@ -8,6 +8,11 @@ export default function AuthenticatedLayout({ header, children }) {
     const user = auth.user;
     const [showingMobileMenu, setShowingMobileMenu] = useState(false);
 
+    const formatRoleLabel = (role) => {
+        if (role === 'koordinator_ta') return 'Koordinator TA';
+        return role;
+    };
+
     useEffect(() => {
         if (flash?.message) {
             toast.success(flash.message, {
@@ -22,9 +27,19 @@ export default function AuthenticatedLayout({ header, children }) {
                 },
             });
         }
+        if (flash?.error) {
+            toast.error(flash.error, {
+                duration: 5000,
+                style: {
+                    background: '#1a1b1e',
+                    color: '#fff',
+                    border: '1px solid rgba(255,84,73,0.4)',
+                },
+            });
+        }
     }, [flash]);
 
-    // Dynamic menu items based on role
+    // Dynamic menu items based on role (Assign Account is strictly Admin-only)
     const menuItems = [
         { name: 'Dashboard Utama', icon: 'dashboard', route: 'dashboard' },
     ];
@@ -63,7 +78,7 @@ export default function AuthenticatedLayout({ header, children }) {
                     </div>
                     <div className="px-6 pb-6">
                         <div className="font-headline-md text-headline-md font-bold text-primary mb-1">ThesisCloud</div>
-                        <div className="text-on-surface-variant font-label-sm text-label-sm capitalize">{user.role} Account</div>
+                        <div className="text-on-surface-variant font-label-sm text-label-sm capitalize">{formatRoleLabel(user.role)} Account</div>
                     </div>
                     <ul className="flex-1 px-6 space-y-2">
                         {menuItems.map((item, idx) => {
@@ -102,13 +117,12 @@ export default function AuthenticatedLayout({ header, children }) {
                             <span className="material-symbols-outlined text-primary hidden" style={{ display: 'none' }}>person</span>
                         </div>
                         <div>
-                            <div className="font-headline-md text-headline-md font-bold text-primary">ThesisCloud {user.role === 'admin' ? 'Admin' : ''}</div>
-                            <div className="text-on-surface-variant font-label-sm text-label-sm mt-1 capitalize">{user.role} Account</div>
+                            <div className="font-headline-md text-headline-md font-bold text-primary">
+                                ThesisCloud {user.role === 'admin' ? 'Admin' : user.role === 'koordinator_ta' ? 'Koordinator' : ''}
+                            </div>
+                            <div className="text-on-surface-variant font-label-sm text-label-sm mt-1 capitalize">{formatRoleLabel(user.role)} Account</div>
                         </div>
                     </div>
-                    {user.role === 'admin' && (
-                        <button className="mt-4 w-full bg-gradient-to-r from-inverse-primary to-primary-container text-white py-2 px-4 rounded shadow-[0_0_15px_rgba(128,131,255,0.4)] font-label-sm text-label-sm hover:opacity-90 transition-opacity">Export Reports</button>
-                    )}
                 </div>
                 <ul className="flex-1 px-4 space-y-2">
                     {menuItems.map((item, idx) => {
