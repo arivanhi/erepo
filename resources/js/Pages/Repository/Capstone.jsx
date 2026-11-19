@@ -885,7 +885,7 @@ export default function Capstone({ projects, dosens = [], mahasiswas = [] }) {
                                         <p className="font-label-sm text-label-sm text-on-surface-variant">
                                             {data.document
                                                 ? `${(data.document.size / 1024 / 1024).toFixed(2)} MB`
-                                                : 'Pastikan TTD Pengesahan & nomor halaman Daftar Isi sudah lengkap (Maks. 50MB)'}
+                                                : 'Pastikan TTD Pengesahan, Daftar Isi, & butir wajib E100–E500 sesuai Pedoman TA sudah lengkap (Maks. 50MB)'}
                                         </p>
                                     </div>
                                     {errors.document && <p className="text-xs text-error font-medium">{errors.document}</p>}
@@ -1109,6 +1109,57 @@ export default function Capstone({ projects, dosens = [], mahasiswas = [] }) {
                                 <div className="text-on-surface whitespace-pre-line">{detailProject.revision_note}</div>
                             </div>
                         )}
+
+                        {detailProject.ai_check_result?.eseries_check?.documents &&
+                            Object.keys(detailProject.ai_check_result.eseries_check.documents).length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <h3 className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">
+                                        Status Dokumen Seri E100–E500 (Pedoman TA):
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {Object.values(detailProject.ai_check_result.eseries_check.documents).map((doc) => (
+                                            <div
+                                                key={doc.code}
+                                                className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                                                    doc.passed
+                                                        ? 'bg-emerald-500/10 border-emerald-500/30'
+                                                        : 'bg-error/10 border-error/30'
+                                                }`}
+                                            >
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-on-surface flex items-center gap-1.5">
+                                                        <span>{doc.code}</span>
+                                                        {doc.present && doc.start_page ? (
+                                                            <span className="text-[10px] font-normal text-on-surface-variant">
+                                                                (Hal. {doc.start_page}–{doc.end_page})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] font-normal text-error">
+                                                                (Tidak ditemukan)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-on-surface-variant truncate" title={doc.title}>
+                                                        {doc.title}
+                                                    </div>
+                                                </div>
+                                                <span
+                                                    className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold text-[11px] ${
+                                                        doc.passed
+                                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                                            : 'bg-error/20 text-error'
+                                                    }`}
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">
+                                                        {doc.passed ? 'check_circle' : 'error'}
+                                                    </span>
+                                                    {doc.passed ? 'Lengkap' : 'Belum'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                         {Array.isArray(detailProject.ai_check_result?.missing_items) &&
                             detailProject.ai_check_result.missing_items.length > 0 && (

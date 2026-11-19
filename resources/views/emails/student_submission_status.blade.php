@@ -28,7 +28,7 @@
         <p style="margin-top: 0;">Halo Tim Mahasiswa (<strong>{{ $memberNames }}</strong>),</p>
 
         @if($statusType === 'uploaded_checking')
-            <p>Dokumen <strong>{{ $projectType }}</strong> kelompok Anda telah berhasil diterima oleh sistem EREPO dan saat ini sedang menjalani pemeriksaan kelengkapan otomatis (tanda tangan pengesahan & nomor halaman Daftar Isi) oleh AI sebelum masuk ke antrean verifikasi.</p>
+            <p>Dokumen <strong>{{ $projectType }}</strong> kelompok Anda telah berhasil diterima oleh sistem EREPO dan saat ini sedang menjalani pemeriksaan kelengkapan otomatis (tanda tangan pengesahan, nomor halaman Daftar Isi, serta kelengkapan butir wajib dokumen E100–E500 sesuai Buku Pedoman TA) oleh AI sebelum masuk ke antrean verifikasi.</p>
         @elseif($statusType === 'pending_verification')
             <p>Dokumen <strong>{{ $projectType }}</strong> kelompok Anda telah siap dan saat ini sedang <strong>menunggu hasil verifikasi</strong> dari Dosen Pembimbing / Koordinator TA / Admin.</p>
         @elseif($statusType === 'reupload_ai')

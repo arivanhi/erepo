@@ -2,7 +2,7 @@
 
 **EREPO** (*Electronic Repository / Knowledge Bank*) adalah platform repositori digital Program Studi S1 Teknik Elektro Universitas Dian Nuswantoro (UDINUS) untuk mengelola, memeriksa kelengkapan dokumen secara otomatis menggunakan AI, memverifikasi, serta mengarsipkan laporan **Capstone Design / Tugas Akhir (PDF)** dan **Source Code Program (Script ZIP/RAR)**.
 
-> **Versi Saat Ini:** `v1.2.0`
+> **Versi Saat Ini:** `v1.2.1`
 
 ---
 
@@ -13,7 +13,7 @@
 | **Backend & Runtime** | Laravel 13, PHP 8.3.36, Laravel Octane (Swoole) | Performa tinggi berbasis worker *in-memory* |
 | **Frontend UI** | React 18, Inertia.js v2, Tailwind CSS v4, Vite | Antarmuka SPA modern bergaya *glassmorphic* |
 | **Database & Cache/Queue** | MySQL 8.0 & Redis (Alpine) | Penyimpanan relasional & pemrosesan antrean AI/Email di *background* |
-| **Pemeriksa Dokumen AI** | Ollama (`qwen3.8:27b` Vision & Text) + `poppler-utils` | Validasi otomatis tanda tangan pengesahan (termasuk hasil *scan*) & kelengkapan nomor halaman Daftar Isi |
+| **Pemeriksa Dokumen AI** | Ollama (`qwen3.8:27b` Vision & Text) + `poppler-utils` | Validasi otomatis tanda tangan pengesahan, nomor halaman Daftar Isi, & kelengkapan butir E100–E500 sesuai Buku Pedoman TA |
 | **Layanan Email** | Google SMTP (`smtp.gmail.com`) Terenkripsi DB | Dikonfigurasi langsung oleh Admin via menu *Settings* tanpa restart container |
 | **Web Server** | Nginx (Alpine) | Port default aplikasi web: `http://localhost:4008` |
 
@@ -34,9 +34,10 @@
 - **Login Staff Berbasis Password:** Akun `admin`, `koordinator_ta`, `dosen`, dan `kaprodi` tetap menggunakan autentikasi NPP/Email + Password.
 
 ### 3. Pemeriksaan Kelengkapan PDF Otomatis (Qwen AI) & Alur Verifikasi
-- **Hybrid PDF Checker (`pdftotext` + `pdftoppm` + Qwen Vision):**
+- **Hybrid PDF Checker (`pdftotext` + `pdftoppm` + Qwen Vision & Text):**
   - Memeriksa keberadaan tanda tangan pada **Halaman Persetujuan, Halaman Pengesahan, dan Lembar Dokumentasi Produk TA (E-100 s/d E-500)** — mendukung halaman digital maupun hasil *scan* gambar tanpa teks OCR.
   - Memastikan **Daftar Isi** tersedia dan seluruh baris bab/sub-bab memiliki nomor halaman yang valid (mendeteksi nomor kosong atau `Error! Bookmark not defined`).
+  - Memvalidasi keberadaan dan kelengkapan **seluruh butir substansi wajib Dokumen Seri E100 s/d E500** sesuai **Buku Pedoman Pelaksanaan Tugas Akhir Capstone Design S1 Teknik Elektro UDINUS** (E100 Proposal & min. 3 konstrain + min. 3 alternatif solusi, E200 Spesifikasi terukur & rencana verifikasi, E300 Arsitektur/Hardware/Firmware/Verifikasi/BOM/Jadwal, E400 Implementasi bottom-up & analisis deviasi, serta E500 Pengujian fungsional, uji ketahanan/batas kerja, analisis kuantitatif, & validasi pemangku kepentingan).
 - **Penahanan Otomatis & Override dengan Catatan:**
   - Dokumen yang belum lengkap otomatis ditahan (*Wajib Upload Ulang*) disertai rincian kekurangan di layar dan via email.
   - Khusus **Koordinator TA** dan **Admin**, tersedia fitur **Terima dengan Catatan** untuk tetap menyetujui dokumen tertentu dengan menyimpan catatan penerimaan ke database sekaligus mengirimkannya via email ke Mahasiswa & Dosen Pembimbing.
@@ -141,6 +142,15 @@ docker exec knowledge_bank_app php artisan test
 ---
 
 ## Changelog
+
+### `v1.2.1` — 19 November 2026
+- **Pemeriksaan AI Kelengkapan Butir Wajib E100–E500 (`CapstonePdfCheckerService`):** Menambahkan pilar validasi ke-3 menggunakan `qwen3.8:27b` mengacu pada **Buku Pedoman Pelaksanaan Tugas Akhir Capstone Design S1 Teknik Elektro UDINUS**:
+  - Segmentasi halaman otomatis untuk mendeteksi keberadaan kelima dokumen seri (`E100`, `E200`, `E300`, `E400`, `E500`) baik dari lembar cover *Dokumentasi Produk Tugas Akhir* (digital/scan), `DAFTAR ISI E-100..E-500`, maupun struktur pengantar template resmi Prodi.
+  - Pemeriksaan substansi butir wajib tiap seri: `E100` (*Problem Statement*, bukti data & skenario, *stakeholders*, min. 3 aspek konstrain realistis, min. 3 alternatif solusi & solusi terpilih), `E200` (spesifikasi kuantitatif terukur, ketertelusuran ke E100, serta metode/instrumen rencana verifikasi spesifikasi), `E300` (diagram blok arsitektur, desain hardware, desain firmware/flowchart, verifikasi desain/simulasi, rincian komponen/BOM, & jadwal pelaksanaan), `E400` (implementasi subsistem *bottom-up*, dokumentasi realisasi fisik, implementasi firmware/antarmuka, & evaluasi kesesuaian/deviasi realisasi), serta `E500` (pengujian fungsional terukur, uji ketahanan/batas kerja operasional, analisis kuantitatif data uji, & validasi pemangku kepentingan/lapangan).
+- **Integrasi Penahanan Otomatis, Notifikasi Email & Ringkasan UI E100–E500:**
+  - Dokumen yang kehilangan seri `E100–E500` atau belum melengkapi butir wajib otomatis ditahan (*Wajib Upload Ulang*) sama seperti saat TTD pengesahan atau nomor halaman Daftar Isi belum lengkap, disertai pengiriman email rincian kekurangan ke seluruh anggota kelompok (serta tetap mendukung *Terima dengan Catatan* bagi Koordinator TA & Admin).
+  - Menambahkan kartu indikator status per seri `E100` s/d `E500` (`Lengkap` / `Belum` beserta rentang halaman PDF) pada modal detail pemeriksaan AI di halaman *Capstone Repository*.
+- **Pengujian Otomatis (`CapstoneESeriesPedomanCheckerTest`):** Menambahkan cakupan *feature test* untuk skenario penahanan butir E100–E500, notifikasi email grup mahasiswa, dan override *Terima dengan Catatan*.
 
 ### `v1.2.0` — 19 November 2026
 - **Portal Katalog Publik Tanpa Login (`/`):** Memisahkan halaman utama katalog publik (`/`, `/explore/capstone`, `/explore/script`) dari halaman login internal (`/login`), lengkap dengan filter Tahun Ajaran dan pilihan *pagination* `10 / 25 / 50` data.

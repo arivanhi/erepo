@@ -70,7 +70,7 @@ export default function Dashboard({ stats, recentActivities }) {
                                 Dokumen Capstone Kelompok Anda Tertahan ({stats.rejected} Dokumen)
                             </h3>
                             <p className="text-sm text-on-surface-variant mt-1">
-                                Pemeriksaan kelengkapan mendeteksi item yang belum lengkap (seperti tanda tangan pengesahan atau nomor halaman Daftar Isi). Silakan periksa rincian kekurangan dan unggah ulang file PDF yang sudah diperbaiki.
+                                Pemeriksaan kelengkapan mendeteksi item yang belum lengkap (seperti tanda tangan pengesahan, nomor halaman Daftar Isi, atau butir wajib dokumen seri E100–E500 sesuai Buku Pedoman TA). Silakan periksa rincian kekurangan dan unggah ulang file PDF yang sudah diperbaiki.
                             </p>
                         </div>
                     </div>
